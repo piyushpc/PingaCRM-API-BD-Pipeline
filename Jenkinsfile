@@ -23,7 +23,7 @@ pipeline {
                     // Set environment-specific variables
                     switch (params.ENVIRONMENT) {
                         case 'Development':
-                            env.API_SERVER = 'ssh -i "vkey.pem" ubuntu@ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
+                            env.API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
                             env.SSH_CREDENTIALS = 'dev-ssh-credentials-id'
                             break
                         case 'uat':
