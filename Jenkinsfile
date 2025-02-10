@@ -4,7 +4,7 @@ pipeline {
     parameters {
         choice(
             name: 'ENVIRONMENT',
-            choices: ['dev', 'uat', 'prod'],
+            choices: ['Development', 'uat', 'prod'],
             description: 'Select the deployment environment: dev, uat, prod'
         )
     }
@@ -22,8 +22,8 @@ pipeline {
                 script {
                     // Set environment-specific variables
                     switch (params.ENVIRONMENT) {
-                        case 'dev':
-                            env.API_SERVER = 'apidev.pingacrm.com'
+                        case 'Development':
+                            env.API_SERVER = 'ssh -i "vkey.pem" ubuntu@ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
                             env.SSH_CREDENTIALS = 'dev-ssh-credentials-id'
                             break
                         case 'uat':
@@ -92,13 +92,20 @@ EOF
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
-                        echo "[INFO] Updating configuration..."
+                        echo "[INFO] Updating configuration for ${params.ENVIRONMENT} environment..."
                         cd /home/ubuntu
-                        cp appsettings.Development.json appsettings.Development.json.\$(date +%Y%m%d%H%M%S).backup
-                        # Manually update appsettings.Development.json if needed
-                        cp appsettings.Development.json PingaCRM/PingaCRM.API/appsettings.Development.json
-                        cp appsettings.Development.json PingaCRM/PingaCRMScheduler/appsettings.Development.json
-EOF
+        
+                        # Backup the existing configuration file
+                        cp appsettings.${params.ENVIRONMENT}.json appsettings.${params.ENVIRONMENT}.json.\$(date +%Y%m%d%H%M%S).backup
+        
+                        # Copy the environment-specific configuration file to the project
+                        cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRM.API/appsettings.${params.ENVIRONMENT}.json
+                        cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRMScheduler/appsettings.${params.ENVIRONMENT}.json
+        
+                        # Optionally, rename the file to appsettings.json if required by the application
+                        # cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRM.API/appsettings.json
+                        # cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRMScheduler/appsettings.json
+        EOF
                     """
                 }
             }
