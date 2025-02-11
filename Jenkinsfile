@@ -20,7 +20,9 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Set environment-specific variables
+                    echo "Selected Environment: ${params.ENVIRONMENT}"
+                    echo "Available Environments: dev, uat, prod"
+        
                     switch (params.ENVIRONMENT) {
                         case 'Development':
                             env.API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
@@ -38,6 +40,7 @@ pipeline {
                             error "Invalid environment: ${params.ENVIRONMENT}"
                     }
                     echo "Initializing deployment to ${params.ENVIRONMENT} environment on ${env.API_SERVER}"
+                    echo "SSH Credentials: ${env.SSH_CREDENTIALS}"
                 }
             }
         }
