@@ -10,9 +10,6 @@ pipeline {
     }
 
     environment {
-        // Define environment-specific variables
-        API_SERVER = ''
-        SSH_CREDENTIALS = ''
         SVN_CREDENTIALS = 'svn-credentials-id'
     }
 
@@ -21,25 +18,21 @@ pipeline {
             steps {
                 script {
                     echo "Selected Environment: ${params.ENVIRONMENT}"
-                    echo "Available Environments: dev, uat, prod"
-        
-                    switch (params.ENVIRONMENT) {
-                        case 'Development':
-                            env.API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
-                            env.SSH_CREDENTIALS = 'dev-ssh-credentials-id'
-                            break
-                        case 'uat':
-                            env.API_SERVER = 'apiuat.pingacrm.com'
-                            env.SSH_CREDENTIALS = 'uat-ssh-credentials-id'
-                            break
-                        case 'prod':
-                            env.API_SERVER = 'apiprod.pingacrm.com'
-                            env.SSH_CREDENTIALS = 'prod-ssh-credentials-id'
-                            break
-                        default:
-                            error "Invalid environment: ${params.ENVIRONMENT}"
+                    
+                    def envConfig = [
+                        'Development': ['API_SERVER': 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com', 'SSH_CREDENTIALS': 'dev-ssh-credentials-id'],
+                        'uat':        ['API_SERVER': 'apiuat.pingacrm.com', 'SSH_CREDENTIALS': 'uat-ssh-credentials-id'],
+                        'prod':       ['API_SERVER': 'apiprod.pingacrm.com', 'SSH_CREDENTIALS': 'prod-ssh-credentials-id']
+                    ]
+
+                    if (!envConfig.containsKey(params.ENVIRONMENT)) {
+                        error "Invalid environment: ${params.ENVIRONMENT}"
                     }
-                    echo "Initializing deployment to ${params.ENVIRONMENT} environment on ${env.API_SERVER}"
+
+                    env.API_SERVER = envConfig[params.ENVIRONMENT]['API_SERVER']
+                    env.SSH_CREDENTIALS = envConfig[params.ENVIRONMENT]['SSH_CREDENTIALS']
+
+                    echo "Initializing deployment to ${params.ENVIRONMENT} on ${env.API_SERVER}"
                     echo "SSH Credentials: ${env.SSH_CREDENTIALS}"
                 }
             }
@@ -47,6 +40,9 @@ pipeline {
 
         stage('Stop Services') {
             steps {
+                script {
+                    echo "Stopping services on ${env.API_SERVER}"
+                }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
@@ -62,6 +58,9 @@ EOF
 
         stage('Backup Old Code') {
             steps {
+                script {
+                    echo "Backing up old code on ${env.API_SERVER}"
+                }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
@@ -76,6 +75,9 @@ EOF
 
         stage('Checkout and Update Code') {
             steps {
+                script {
+                    echo "Checking out and updating code from SVN on ${env.API_SERVER}"
+                }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     withCredentials([usernamePassword(credentialsId: env.SVN_CREDENTIALS, usernameVariable: 'SVN_USER', passwordVariable: 'SVN_PASS')]) {
                         sh """
@@ -92,23 +94,18 @@ EOF
 
         stage('Update Configuration') {
             steps {
+                script {
+                    echo "Updating configuration for ${params.ENVIRONMENT}"
+                }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
-                        echo "[INFO] Updating configuration for ${params.ENVIRONMENT} environment..."
+                        echo "[INFO] Updating configuration for ${params.ENVIRONMENT}..."
                         cd /home/ubuntu
-        
-                        # Backup the existing configuration file
                         cp appsettings.${params.ENVIRONMENT}.json appsettings.${params.ENVIRONMENT}.json.\$(date +%Y%m%d%H%M%S).backup
-        
-                        # Copy the environment-specific configuration file to the project
                         cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRM.API/appsettings.${params.ENVIRONMENT}.json
                         cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRMScheduler/appsettings.${params.ENVIRONMENT}.json
-        
-                        # Optionally, rename the file to appsettings.json if required by the application
-                        # cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRM.API/appsettings.json
-                        # cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRMScheduler/appsettings.json
-        EOF
+EOF
                     """
                 }
             }
@@ -116,6 +113,9 @@ EOF
 
         stage('Build and Deploy') {
             steps {
+                script {
+                    echo "Building and deploying application on ${env.API_SERVER}"
+                }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
@@ -133,6 +133,9 @@ EOF
 
         stage('Start Services') {
             steps {
+                script {
+                    echo "Starting services on ${env.API_SERVER}"
+                }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
@@ -152,10 +155,10 @@ EOF
 
     post {
         success {
-            echo "Deployment to ${params.ENVIRONMENT} environment completed successfully!"
+            echo "Deployment to ${params.ENVIRONMENT} completed successfully!"
         }
         failure {
-            echo "Deployment to ${params.ENVIRONMENT} environment failed. Check logs for details."
+            echo "Deployment to ${params.ENVIRONMENT} failed. Check logs for details."
         }
     }
 }
