@@ -46,12 +46,11 @@ pipeline {
                 }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.API_SERVER} <<EOF
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.API_SERVER} \
                         echo "[INFO] Stopping services..."
                         sudo systemctl stop aspnetcoreapp.service
                         sudo systemctl stop aspnetcorescheduler.service
                         sudo service apache2 stop
-EOF
                     """
                 }
             }
