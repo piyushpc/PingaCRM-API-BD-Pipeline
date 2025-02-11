@@ -11,6 +11,7 @@ pipeline {
 
     environment {
         SVN_CREDENTIALS = 'svn-credentials-id'
+        SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
     }
 
     stages {
@@ -45,7 +46,7 @@ pipeline {
                 }
                 sshagent(credentials: [env.SSH_CREDENTIALS]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Stopping services..."
                         sudo systemctl stop aspnetcoreapp.service
                         sudo systemctl stop aspnetcorescheduler.service
