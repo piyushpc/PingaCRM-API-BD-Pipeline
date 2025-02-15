@@ -46,6 +46,8 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY')]) {
                     sh """
+                    sh 'ls -l $SSH_KEY'
+                    sh 'cat $SSH_KEY'
                     ssh -i $SSH_KEY -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Stopping services..."
                         sudo systemctl stop aspnetcoreapp.service
