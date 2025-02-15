@@ -55,6 +55,7 @@ pipeline {
 EOF
                     """
             }
+            }
         }
 
         stage('Backup Old Code') {
