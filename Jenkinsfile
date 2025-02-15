@@ -10,8 +10,9 @@ pipeline {
     }
 
     environment {
+        API_SERVER = ''
+        SSH_CREDENTIALS = ''
         SVN_CREDENTIALS = 'svn-credentials-id'
-        SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
     }
 
     stages {
@@ -20,37 +21,37 @@ pipeline {
                 script {
                     echo "Selected Environment: ${params.ENVIRONMENT}"
                     
-                    def envConfig = [
-                        'Development': ['API_SERVER': 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com', 'SSH_CREDENTIALS': 'dev-ssh-credentials-id'],
-                        'uat':        ['API_SERVER': 'apiuat.pingacrm.com', 'SSH_CREDENTIALS': 'uat-ssh-credentials-id'],
-                        'prod':       ['API_SERVER': 'apiprod.pingacrm.com', 'SSH_CREDENTIALS': 'prod-ssh-credentials-id']
-                    ]
-
-                    if (!envConfig.containsKey(params.ENVIRONMENT)) {
-                        error "Invalid environment: ${params.ENVIRONMENT}"
+                    switch (params.ENVIRONMENT) {
+                        case 'Development':
+                            env.API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
+                            env.SSH_CREDENTIALS = 'dev-ssh-credentials-id'
+                            break
+                        case 'uat':
+                            env.API_SERVER = 'apiuat.pingacrm.com'
+                            env.SSH_CREDENTIALS = 'uat-ssh-credentials-id'
+                            break
+                        case 'prod':
+                            env.API_SERVER = 'apiprod.pingacrm.com'
+                            env.SSH_CREDENTIALS = 'prod-ssh-credentials-id'
+                            break
+                        default:
+                            error "Invalid environment: ${params.ENVIRONMENT}"
                     }
-
-                    env.API_SERVER = envConfig[params.ENVIRONMENT]['API_SERVER']
-                    env.SSH_CREDENTIALS = envConfig[params.ENVIRONMENT]['SSH_CREDENTIALS']
-
-                    echo "Initializing deployment to ${params.ENVIRONMENT} on ${env.API_SERVER}"
-                    echo "SSH Credentials: ${env.SSH_CREDENTIALS}"
+                    echo "Deploying to: ${env.API_SERVER}"
                 }
             }
         }
 
         stage('Stop Services') {
             steps {
-                script {
-                    echo "Stopping services on ${env.API_SERVER}"
-                }
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.API_SERVER} \
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Stopping services..."
                         sudo systemctl stop aspnetcoreapp.service
                         sudo systemctl stop aspnetcorescheduler.service
                         sudo service apache2 stop
+EOF
                     """
                 }
             }
@@ -58,12 +59,9 @@ pipeline {
 
         stage('Backup Old Code') {
             steps {
-                script {
-                    echo "Backing up old code on ${env.API_SERVER}"
-                }
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Backing up old code..."
                         cd /home/ubuntu
                         cp -R PingaCRM PingaCRM-\$(date +%Y%m%d%H%M%S)
@@ -75,32 +73,27 @@ EOF
 
         stage('Checkout and Update Code') {
             steps {
-                script {
-                    echo "Checking out and updating code from SVN on ${env.API_SERVER}"
-                }
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
-                    withCredentials([usernamePassword(credentialsId: env.SVN_CREDENTIALS, usernameVariable: 'SVN_USER', passwordVariable: 'SVN_PASS')]) {
-                        sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
-                            echo "[INFO] Updating code from SVN..."
-                            cd /home/ubuntu/PingaCRM
-                            svn update --username $SVN_USER --password $SVN_PASS
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY'),
+                    usernamePassword(credentialsId: env.SVN_CREDENTIALS, usernameVariable: 'SVN_USER', passwordVariable: 'SVN_PASS')
+                ]) {
+                    sh """
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
+                        echo "[INFO] Updating code from SVN..."
+                        cd /home/ubuntu/PingaCRM
+                        svn update --username $SVN_USER --password $SVN_PASS
 EOF
-                        """
-                    }
+                    """
                 }
             }
         }
 
         stage('Update Configuration') {
             steps {
-                script {
-                    echo "Updating configuration for ${params.ENVIRONMENT}"
-                }
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
-                        echo "[INFO] Updating configuration for ${params.ENVIRONMENT}..."
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
+                        echo "[INFO] Updating configuration..."
                         cd /home/ubuntu
                         cp appsettings.${params.ENVIRONMENT}.json appsettings.${params.ENVIRONMENT}.json.\$(date +%Y%m%d%H%M%S).backup
                         cp appsettings.${params.ENVIRONMENT}.json PingaCRM/PingaCRM.API/appsettings.${params.ENVIRONMENT}.json
@@ -113,12 +106,9 @@ EOF
 
         stage('Build and Deploy') {
             steps {
-                script {
-                    echo "Building and deploying application on ${env.API_SERVER}"
-                }
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Building and deploying..."
                         cd /home/ubuntu/PingaCRM
                         sudo dotnet restore
@@ -133,12 +123,9 @@ EOF
 
         stage('Start Services') {
             steps {
-                script {
-                    echo "Starting services on ${env.API_SERVER}"
-                }
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Starting services..."
                         sudo service apache2 start
                         sudo systemctl start aspnetcoreapp.service
