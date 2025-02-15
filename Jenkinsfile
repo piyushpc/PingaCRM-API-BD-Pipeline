@@ -44,7 +44,7 @@ pipeline {
 
         stage('Stop Services') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIALS, keyFileVariable: 'SSH_KEY')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'my-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh """
                     chmod 600 ${SSH_KEY}
                     ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
