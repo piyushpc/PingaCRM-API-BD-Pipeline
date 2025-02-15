@@ -60,6 +60,8 @@ EOF
                     echo "[INFO] Backing up old code..."
                     cd /home/ubuntu
                     cp -R PingaCRM PingaCRM-\$(date +%Y%m%d%H%M%S)
+                    sudo rm -rf PingaCRM/awscompiledcode
+                    cd PingaCRM/
 EOF
                 """
             }
