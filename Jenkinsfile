@@ -26,7 +26,7 @@ pipeline {
                             env.API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
                             break
                         case 'uat':
-                            env.API_SERVER = 'apiuat.pingacrm.com'
+                            env.API_SERVER = 'ec2-13-232-33-76.ap-south-1.compute.amazonaws.com'
                             break
                         case 'prod':
                             env.API_SERVER = 'apiprod.pingacrm.com'
