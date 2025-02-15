@@ -149,4 +149,3 @@ EOF
             echo "Deployment to ${params.ENVIRONMENT} failed. Check logs for details."
         }
     }
-}
