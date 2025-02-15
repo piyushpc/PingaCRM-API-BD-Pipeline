@@ -13,6 +13,7 @@ pipeline {
         API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
         SSH_CREDENTIALS = 'dev-ssh-credentials-id'
         SVN_CREDENTIALS = 'svn-credentials-id'
+        SSH_KEY_PATH = "/var/lib/jenkins/vkey.pem"
     }
 
     stages {
@@ -44,17 +45,15 @@ pipeline {
 
         stage('Stop Services') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'my-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh """
                     chmod 600 ${SSH_KEY}
-                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
+                    ssh -i $SSH_KEY_PATH -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Stopping services..."
                         sudo systemctl stop aspnetcoreapp.service
                         sudo systemctl stop aspnetcorescheduler.service
                         sudo service apache2 stop
 EOF
                     """
-                }
             }
         }
 
