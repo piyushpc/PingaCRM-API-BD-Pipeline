@@ -1,25 +1,11 @@
 pipeline {
     agent any
 
-    def sendSlackNotification(String message, String status) {
-        def color = (status == "success") ? "good" : "danger"
-        def payload = """
-        {
-            "attachments": [
-                {
-                    "color": "${color}",
-                    "text": "${message}",
-                    "footer": "Jenkins CI/CD Pipeline",
-                    "ts": "${new Date().getTime()/1000}"
-                }
-            ]
-        }
-        """
-        sh """
-            curl -X POST -H "Content-type: application/json" \
-            --data '${payload}' \
-            ${env.SLACK_WEBHOOK_URL}
-        """
+    environment {
+        API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
+        SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
+        SVN_CREDENTIALS = 'svn-credentials-id'
+        SLACK_WEBHOOK_URL = credentials('SLACK_WEBHOOK_URL')
     }
 
     parameters {
@@ -28,13 +14,6 @@ pipeline {
             choices: ['Development', 'uat', 'prod'],
             description: 'Select the deployment environment: dev, uat, prod'
         )
-    }
-
-    environment {
-        API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
-        SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
-        SVN_CREDENTIALS = 'svn-credentials-id'
-        SLACK_WEBHOOK_URL = credentials('SLACK_WEBHOOK_URL')
     }
 
     stages {
@@ -90,9 +69,7 @@ EOF
 
         stage('Checkout and Update Code') {
             steps {
-                withCredentials([
-                    usernamePassword(credentialsId: env.SVN_CREDENTIALS, usernameVariable: 'SVN_USER', passwordVariable: 'SVN_PASS')
-                ]) {
+                withCredentials([usernamePassword(credentialsId: env.SVN_CREDENTIALS, usernameVariable: 'SVN_USER', passwordVariable: 'SVN_PASS')]) {
                     sh """
                     ssh -i ${env.SSH_KEY_PATH} -o StrictHostKeyChecking=no ubuntu@${env.API_SERVER} <<EOF
                         echo "[INFO] Updating code from SVN..."
@@ -162,4 +139,25 @@ EOF
             }
         }
     }
+}
+
+def sendSlackNotification(String message, String status) {
+    def color = (status == "success") ? "good" : "danger"
+    def payload = """
+        {
+            "attachments": [
+                {
+                    "color": "${color}",
+                    "text": "${message}",
+                    "footer": "Jenkins CI/CD Pipeline",
+                    "ts": "$(new Date().getTime()/1000)"
+                }
+            ]
+        }
+    """
+    sh """
+        curl -X POST -H 'Content-type: application/json' \
+        --data '${payload}' \
+        ${env.SLACK_WEBHOOK_URL}
+    """
 }
