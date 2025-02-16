@@ -17,8 +17,8 @@ pipeline {
     """
     sh """
         curl -X POST -H 'Content-type: application/json' \
-        --data '${payload}' \
-        $(echo ${env.SLACK_WEBHOOK_URL})
+        --data '\${payload}' \
+        \$(echo \${env.SLACK_WEBHOOK_URL})
     """
 }
 
