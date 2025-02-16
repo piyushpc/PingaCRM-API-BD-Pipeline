@@ -148,9 +148,9 @@ def sendSlackNotification(String message, String status) {
             "attachments": [
                 {
                     "color": "${color}",
-                    "text": "${message}",
+                    "text": "${message.replaceAll("\\$", "\\\\$")}",
                     "footer": "Jenkins CI/CD Pipeline",
-                    "ts": "$(new Date().getTime()/1000)"
+                    "ts": "${System.currentTimeMillis()/1000}"
                 }
             ]
         }
