@@ -143,7 +143,7 @@ EOF
 
 def sendSlackNotification(String message, String status) {
     def color = (status == "success") ? "good" : "danger"
-    def escapedMessage = message.replaceAll("\\$", "\\\\\\$")
+    def escapedMessage = message.replaceAll('\\$', '\\\\\\$')
     def payload = """
         {
             "attachments": [
