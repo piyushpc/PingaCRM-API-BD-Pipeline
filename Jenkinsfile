@@ -7,10 +7,10 @@ pipeline {
         {
             "attachments": [
                 {
-                    "color": "${color}",
-                    "text": "${message}",
+                    "color": "\${color}",
+                    "text": "\${message}",
                     "footer": "Jenkins CI/CD Pipeline",
-                    "ts": "$(new Date().getTime()/1000)"
+                    "ts": "\$(new Date().getTime()/1000)"
                 }
             ]
         }
@@ -21,8 +21,8 @@ pipeline {
         $(echo ${env.SLACK_WEBHOOK_URL})
     """
 }
-    
 
+    
     parameters {
         choice(
             name: 'ENVIRONMENT',
