@@ -143,12 +143,13 @@ EOF
 
 def sendSlackNotification(String message, String status) {
     def color = (status == "success") ? "good" : "danger"
+    def escapedMessage = message.replaceAll("\\$", "\\\\\\$")
     def payload = """
         {
             "attachments": [
                 {
                     "color": "${color}",
-                    "text": "${message.replaceAll("\\$", "\\\\$")}",
+                    "text": "${escapedMessage}",
                     "footer": "Jenkins CI/CD Pipeline",
                     "ts": "${System.currentTimeMillis()/1000}"
                 }
