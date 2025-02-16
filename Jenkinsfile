@@ -9,6 +9,27 @@ pipeline {
         )
     }
 
+    def sendSlackNotification(String message, String status) {
+    def color = (status == "success") ? "good" : "danger"
+    def payload = """
+        {
+            "attachments": [
+                {
+                    "color": "${color}",
+                    "text": "${message}",
+                    "footer": "Jenkins CI/CD Pipeline",
+                    "ts": "$(new Date().getTime()/1000)"
+                }
+            ]
+        }
+    """
+    sh """
+        curl -X POST -H 'Content-type: application/json' \
+        --data '${payload}' \
+        $(echo ${env.SLACK_WEBHOOK_URL})
+    """
+}
+
     environment {
         API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
         SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'   // <-- Hardcoded SSH key path
@@ -129,27 +150,6 @@ EOF
             }
         }
     }
-
-    def sendSlackNotification(String message, String status) {
-    def color = (status == "success") ? "good" : "danger"
-    def payload = """
-        {
-            "attachments": [
-                {
-                    "color": "${color}",
-                    "text": "${message}",
-                    "footer": "Jenkins CI/CD Pipeline",
-                    "ts": "$(new Date().getTime()/1000)"
-                }
-            ]
-        }
-    """
-    sh """
-        curl -X POST -H 'Content-type: application/json' \
-        --data '${payload}' \
-        $(echo ${env.SLACK_WEBHOOK_URL})
-    """
-}
 
     post {
     success {
