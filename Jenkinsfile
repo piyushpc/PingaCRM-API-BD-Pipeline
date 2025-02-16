@@ -13,6 +13,7 @@ pipeline {
         API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
         SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'   // <-- Hardcoded SSH key path
         SVN_CREDENTIALS = 'svn-credentials-id'
+        SLACK_WEBHOOK_URL = credentials('SLACK_WEBHOOK_URL')
     }
 
     stages {
@@ -129,12 +130,36 @@ EOF
         }
     }
 
-    post {
-        success {
-            echo "Deployment to ${params.ENVIRONMENT} completed successfully!"
+    def sendSlackNotification(String message, String status) {
+    def color = (status == "success") ? "good" : "danger"
+    def payload = """
+        {
+            "attachments": [
+                {
+                    "color": "${color}",
+                    "text": "${message}",
+                    "footer": "Jenkins CI/CD Pipeline",
+                    "ts": "$(new Date().getTime()/1000)"
+                }
+            ]
         }
-        failure {
-            echo "Deployment to ${params.ENVIRONMENT} failed. Check logs for details."
+    """
+    sh """
+        curl -X POST -H 'Content-type: application/json' \
+        --data '${payload}' \
+        $(echo ${env.SLACK_WEBHOOK_URL})
+    """
+}
+
+    post {
+    success {
+        script {
+            sendSlackNotification("Deployment to ${params.ENVIRONMENT} completed successfully!", "success")
+        }
+    }
+    failure {
+        script {
+            sendSlackNotification("Deployment to ${params.ENVIRONMENT} failed. Check logs for details.", "failure")
         }
     }
 }
