@@ -1,14 +1,6 @@
 pipeline {
     agent any
 
-    parameters {
-        choice(
-            name: 'ENVIRONMENT',
-            choices: ['Development', 'uat', 'prod'],
-            description: 'Select the deployment environment: dev, uat, prod'
-        )
-    }
-
     def sendSlackNotification(String message, String status) {
     def color = (status == "success") ? "good" : "danger"
     def payload = """
@@ -29,6 +21,15 @@ pipeline {
         $(echo ${env.SLACK_WEBHOOK_URL})
     """
 }
+    
+
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['Development', 'uat', 'prod'],
+            description: 'Select the deployment environment: dev, uat, prod'
+        )
+    }
 
     environment {
         API_SERVER = 'ec2-13-234-54-22.ap-south-1.compute.amazonaws.com'
